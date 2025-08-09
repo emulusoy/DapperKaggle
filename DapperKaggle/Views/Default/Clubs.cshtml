@@ -1,0 +1,120 @@
+﻿@model List<ResultClubsDto>
+@{
+    ViewData["Title"] = "Clubs";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    int page       = ViewBag.Page is int ? (int)ViewBag.Page : 1;
+    int pageSize   = ViewBag.PageSize is int ? (int)ViewBag.PageSize : 20;
+    int totalCount = ViewBag.TotalCount is int ? (int)ViewBag.TotalCount : Model.Count;
+    string? q      = ViewBag.Q as string;
+
+    int totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+    Func<decimal?, string> money = v => v.HasValue ? v.Value.ToString("N0") + " €" : "—";
+    Func<decimal?, string> percent = v => v.HasValue ? v.Value.ToString("0.#") + "%" : "—";
+}
+
+@section PageHeader{
+  <div class="flex flex-col gap-3 py-6 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-xl font-semibold">Türkiye Kulüpleri</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        Süper Lig (TR1) • Toplam: <span class="font-medium">@totalCount</span>
+      </p>
+    </div>
+
+    <form method="get" action="@Url.Action("Clubs","Default")" class="flex items-center gap-2">
+      <input type="text" name="q" value="@q" placeholder="Kulüp adı ara…"
+             class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none
+                    focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800" />
+            <select name="pageSize"
+                    class="rounded-xl border border-gray-300 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-800">
+                @{
+                    var sizes = new[] { 10, 20, 50, 100 };
+                }
+                @foreach (var s in sizes)
+                {
+                    <option value="@s" selected="@(s == pageSize ? "selected" : null)">@s</option>
+                }
+            </select>
+      <button class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+        Uygula
+      </button>
+    </form>
+  </div>
+}
+
+<div class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-left text-sm">
+      <thead class="bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+        <tr>
+          <th class="px-4 py-3">Kulüp</th>
+          <th class="px-4 py-3">Kod</th>
+          <th class="px-4 py-3">Piyasa Değeri</th>
+          <th class="px-4 py-3">Kadro</th>
+          <th class="px-4 py-3">Yaş Ort.</th>
+          <th class="px-4 py-3">Yabancı %</th>
+          <th class="px-4 py-3">Transfer Rekoru</th>
+          <th class="px-4 py-3">Stadyum</th>
+          <th class="px-4 py-3">Antrenör</th>
+          <th class="px-4 py-3">Link</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      @if (Model is { Count: > 0 })
+      {
+          foreach (var c in Model)
+          {
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                <td class="px-4 py-3">
+                  <div class="flex flex-col">
+                    <span class="font-medium">@c.name</span>
+                    <span class="text-xs text-gray-500">TR1</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">-</td>
+                <td class="px-4 py-3">@c.total_Market_Value</td>
+                <td class="px-4 py-3">@c.squad_Size</td>
+                <td class="px-4 py-3">@((c.average_Age?.ToString("00.0")) ?? "—")</td>
+                <td class="px-4 py-3">@percent(c.foreigners_Percentage)</td>
+                <td class="px-4 py-3">@c.net_Transfer_Record</td>
+                <td class="px-4 py-3">
+                  <div class="flex flex-col">
+                    <span>@(string.IsNullOrWhiteSpace(c.stadium_Name) ? "—" : c.stadium_Name)</span>
+                    <span class="text-xs text-gray-500">@(c.stadium_Seats?.ToString("N0"))</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3">@(!string.IsNullOrWhiteSpace(c.coach_Name) ? c.coach_Name : "—")</td>
+                <td class="px-4 py-3">
+                  @if (!string.IsNullOrWhiteSpace(c.url))
+                  {
+                    <a href="@c.url" target="_blank" rel="noopener"
+                       class="rounded-lg border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50
+                              dark:border-gray-700 dark:hover:bg-gray-800">Aç</a>
+                  }
+                  else { <span class="text-gray-400">—</span> }
+                </td>
+              </tr>
+          }
+      }
+      else
+      {
+          <tr><td colspan="10" class="px-4 py-6 text-center text-gray-500">Kayıt bulunamadı.</td></tr>
+      }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pager -->
+  <div class="flex items-center justify-between gap-3 border-t border-gray-100 px-4 py-3 text-sm dark:border-gray-800">
+    <div>Sayfa <span class="font-medium"></span> / @totalPages</div>
+    <div class="flex items-center gap-2">
+      <a class="rounded-xl border px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 @(page <= 1 ? "pointer-events-none opacity-50" : "")"
+         href="@Url.Action("Clubs","Default", new { q, page = page - 1, pageSize })">Önceki</a>
+
+      <a class="rounded-xl border px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 @(page >= totalPages ? "pointer-events-none opacity-50" : "")"
+         href="@Url.Action("Clubs","Default", new { q, page = page + 1, pageSize })">Sonraki</a>
+    </div>
+  </div>
+</div>
