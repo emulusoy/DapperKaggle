@@ -1,0 +1,343 @@
+﻿@model List<ResultPlayersDto>
+@{
+    ViewData["Title"] = "Players";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    long clubId = ViewBag.ClubId is long ? (long)ViewBag.ClubId : 0;
+    string clubName = ViewBag.ClubName as string ?? "Club";
+
+    Func<DateTime?, int?> age = dob =>
+    {
+        if (dob == null) return null;
+        var today = DateTime.Today;
+        var a = today.Year - dob.Value.Year;
+        if (dob.Value.Date > today.AddYears(-a)) a--;
+        return a;
+    };
+}
+
+@section PageHeader {
+    <style>
+        /* Açılır menü her yerde okunaklı olsun */
+        .pitch-select {
+            background: #fff;
+            color: #111827;
+        }
+            /* text-gray-900 */
+            .pitch-select option {
+                color: #111827;
+                background: #fff;
+            }
+            /* bazı tarayıcılar için */
+            .pitch-select:focus {
+                outline: 0;
+                box-shadow: 0 0 0 3px rgba(255,255,255,.45);
+            }
+    </style>
+    <div class="flex items-center justify-between py-6">
+        <div>
+            <h1 class="text-xl font-semibold">@clubName – Kadro</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Kulüp ID: @clubId • Oyuncu: @Model.Count</p>
+        </div>
+    </div>
+}
+
+<div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+    <!-- SOL: Oyuncu listesi -->
+    <aside class="xl:col-span-1 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+        <div class="mb-3 flex items-center gap-2">
+            <input id="playerSearch" placeholder="Oyuncu ara…" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800" />
+            <select id="posFilter" class="rounded-xl border border-gray-300 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-800">
+                <option value="">Tümü</option>
+                <option>Goalkeeper</option>
+                <option>Defender</option>
+                <option>Midfield</option>
+                <option>Attack</option>
+            </select>
+        </div>
+
+        <ul id="playersList" class="max-h-[76vh] space-y-2 overflow-auto pr-2">
+            @foreach (var p in Model)
+            {
+                var _age = age(p.date_of_birth);
+                var pos = p.position ?? p.sub_position ?? "";
+                <li class="player-item rounded-xl border border-gray-200 p-2 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center gap-3"
+                    draggable="true"
+                    data-pos="@pos"
+                    data-id="@p.player_id"
+                    data-name="@p.name"
+                    data-img="@(string.IsNullOrWhiteSpace(p.image_url) ? "" : p.image_url)">
+                    <img src="@(string.IsNullOrWhiteSpace(p.image_url) ? "https://placehold.co/48x48" : p.image_url)" class="h-10 w-10 rounded-full object-cover" />
+                    <div class="min-w-0 flex-1">
+                        <div class="truncate font-medium">@p.name</div>
+                        <div class="text-xs text-gray-500">@pos · @(_age?.ToString() ?? "—")</div>
+                    </div>
+                    <button type="button" class="text-xs rounded-lg border px-2 py-1 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800" onclick="showDetail(@p.player_id)">Detay</button>
+                </li>
+            }
+        </ul>
+    </aside>
+
+    <!-- SAĞ: Saha + Detay -->
+
+    <section class="xl:col-span-2 space-y-4">
+        <div class="flex items-center justify-between bg-white/10 px-4 py-2 text-white backdrop-blur">
+            <div class="flex items-center gap-3 text-sm font-medium">
+                <span id="formationTitle">Saha • 4-2-3-1</span>
+
+                <!-- Özel tasarımlı select -->
+                <div class="relative">
+                    <select id="formationSelect"
+                            class="pitch-select appearance-none rounded-lg border border-white/40 px-3 py-1 pr-8 text-sm">
+                        <option value="4-2-3-1" selected>4-2-3-1</option>
+                        <option value="4-3-3">4-3-3</option>
+                        <option value="4-4-2">4-4-2</option>
+                    </select>
+                    <!-- Ok ikonu -->
+                    <svg class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-900/80"
+                         viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+            </div>
+
+            <div class="space-x-2">
+                <button class="rounded-lg bg-white/10 px-3 py-1 text-sm hover:bg-white/20" onclick="clearLineup()">Temizle</button>
+                <button class="rounded-lg bg-white/10 px-3 py-1 text-sm hover:bg-white/20" onclick="saveLineup()">Kaydet</button>
+            </div>
+        </div>
+
+
+        <div class="relative overflow-hidden rounded-2xl border border-emerald-700/60 bg-gradient-to-b from-emerald-700 to-emerald-600 shadow-xl">
+            <!-- Üst bar -->
+           
+
+
+            <!-- Çizgiler (SVG) -->
+            <svg viewBox="0 0 100 60" class="pointer-events-none absolute inset-0 h-full w-full opacity-80">
+                <rect x="2" y="2" width="96" height="56" rx="3" ry="3" fill="none" stroke="white" stroke-width="0.8" />
+                <line x1="50" y1="2" x2="50" y2="58" stroke="white" stroke-width="0.6" />
+                <circle cx="50" cy="30" r="6" fill="none" stroke="white" stroke-width="0.6" />
+                <rect x="2" y="18" width="16" height="24" fill="none" stroke="white" stroke-width="0.6" />
+                <rect x="82" y="18" width="16" height="24" fill="none" stroke="white" stroke-width="0.6" />
+                <rect x="2" y="24" width="6" height="12" fill="none" stroke="white" stroke-width="0.6" />
+                <rect x="92" y="24" width="6" height="12" fill="none" stroke="white" stroke-width="0.6" />
+                <circle cx="14" cy="30" r="0.7" fill="white" />
+                <circle cx="86" cy="30" r="0.7" fill="white" />
+            </svg>
+
+            <!-- Pitch container (büyük ve responsive) -->
+            <div id="pitch" class="relative mx-auto w-full max-w-7xl p-4
+                              aspect-[9/16] sm:aspect-[4/3] lg:aspect-[16/9]">
+                <div id="pitchAbs" class="relative h-full w-full"><!-- slotlar JS ile gelecek --></div>
+            </div>
+        </div>
+
+        <!-- Oyuncu Detayı -->
+        <div id="playerDetail" class="hidden rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+            <div class="mb-3 text-sm font-medium">Oyuncu Detayı</div>
+            <div class="flex items-center gap-4">
+                <img id="d_img" src="https://placehold.co/96x96" class="h-24 w-24 rounded-xl object-cover" />
+                <div class="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
+                    <div class="text-gray-500">Ad:</div> <div id="d_name">—</div>
+                    <div class="text-gray-500">Pozisyon:</div> <div id="d_pos">—</div>
+                    <div class="text-gray-500">Doğum:</div> <div id="d_dob">—</div>
+                    <div class="text-gray-500">Ayak:</div> <div id="d_foot">—</div>
+                    <div class="text-gray-500">Değer (€):</div> <div id="d_val">—</div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <script>
+        // --------- SOL LİSTE: DnD + filtre ---------
+        const list = document.getElementById('playersList');
+        const search = document.getElementById('playerSearch');
+        const posFilter = document.getElementById('posFilter');
+
+        list?.addEventListener('dragstart', (e) => {
+          const li = e.target.closest('.player-item');
+          if (!li) return;
+          const data = { id: Number(li.dataset.id), name: li.dataset.name, pos: li.dataset.pos || '', img: li.dataset.img || '' };
+          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.setData('text/plain', JSON.stringify(data));
+        });
+
+        function applyFilter(){
+          const q = (search?.value || '').toLowerCase();
+          const f = (posFilter?.value || '').toLowerCase();
+          for (const li of document.querySelectorAll('.player-item')) {
+            const name = (li.dataset.name || '').toLowerCase();
+            const pos  = (li.dataset.pos  || '').toLowerCase();
+            li.classList.toggle('hidden', !( (!q || name.includes(q)) && (!f || pos.includes(f)) ));
+          }
+        }
+        search?.addEventListener('input', applyFilter);
+        posFilter?.addEventListener('change', applyFilter);
+
+        // --------- FORMASYON: yüzde koordinatlı slotlar ---------
+        const formationTitle = document.getElementById('formationTitle');
+        const formationSelect = document.getElementById('formationSelect');
+        const pitchAbs = document.getElementById('pitchAbs');
+        const clubId = '@clubId';
+
+        // Slot HTML (absolute)
+        function slotHtml(id, label){
+          return `
+            <div class="dropzone group absolute -translate-x-1/2 -translate-y-1/2
+                        h-14 w-14 md:h-16 md:w-16 xl:h-20 xl:w-20
+                        rounded-2xl border-2 border-white/70 bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
+                 data-slot="${id}"
+                 ondragover="onDragOver(event)" ondragenter="onDragEnter(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+              <div class="pointer-events-none absolute -top-2 md:-top-3 left-1/2 -translate-x-1/2 rounded-lg bg-black/30 px-2 py-0.5 text-[10px]">${label}</div>
+              <div class="flex h-full w-full items-center justify-center text-xs"><span class="opacity-80">Bırak</span></div>
+              <button type="button" class="clear-btn hidden absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 text-white shadow"
+                      title="Kaldır" onclick="clearSlot(this)">×</button>
+            </div>`;
+        }
+
+        // Koordinatlar (x: % soldan, y: % yukarıdan). DEF hattı tek çizgi: aynı x.
+        const F = {
+          "4-2-3-1": [
+            { id:"GK",  x: 6,  y:50, l:"GK" },
+
+            { id:"LB",  x:22, y:20, l:"LB" },
+            { id:"LCB", x:22, y:40, l:"CB" },
+            { id:"RCB", x:22, y:60, l:"CB" },
+            { id:"RB",  x:22, y:80, l:"RB" },
+
+            { id:"LDM", x:40, y:35, l:"DM" },
+            { id:"RDM", x:40, y:65, l:"DM" },
+
+            { id:"LAM", x:58, y:30, l:"AM" },
+            { id:"CAM", x:58, y:50, l:"AM" },
+            { id:"RAM", x:58, y:70, l:"AM" },
+
+            { id:"ST",  x:78, y:50, l:"ST" }
+          ],
+          "4-3-3": [
+            { id:"GK",  x: 6,  y:50, l:"GK" },
+
+            { id:"LB",  x:22, y:20, l:"LB" },
+            { id:"LCB", x:22, y:40, l:"CB" },
+            { id:"RCB", x:22, y:60, l:"CB" },
+            { id:"RB",  x:22, y:80, l:"RB" },
+
+            { id:"LCM", x:42, y:35, l:"CM" },
+            { id:"CM",  x:42, y:50, l:"CM" },
+            { id:"RCM", x:42, y:65, l:"CM" },
+
+            { id:"LW",  x:68, y:30, l:"LW" },
+            { id:"ST",  x:80, y:50, l:"ST" },
+            { id:"RW",  x:68, y:70, l:"RW" }
+          ],
+          "4-4-2": [
+            { id:"GK",  x: 6,  y:50, l:"GK" },
+
+            { id:"LB",  x:22, y:20, l:"LB" },
+            { id:"LCB", x:22, y:40, l:"CB" },
+            { id:"RCB", x:22, y:60, l:"CB" },
+            { id:"RB",  x:22, y:80, l:"RB" },
+
+            { id:"LM",  x:45, y:30, l:"LM" },
+            { id:"LCM", x:45, y:45, l:"CM" },
+            { id:"RCM", x:45, y:55, l:"CM" },
+            { id:"RM",  x:45, y:70, l:"RM" },
+
+            { id:"ST1", x:72, y:42, l:"ST" },
+            { id:"ST2", x:72, y:58, l:"ST" }
+          ]
+        };
+
+        let currentFormation = formationSelect?.value || "4-2-3-1";
+
+        function renderFormation(name){
+          currentFormation = name;
+          if (formationTitle) formationTitle.textContent = `Saha • ${name}`;
+          pitchAbs.innerHTML = "";
+          F[name].forEach(s => {
+            const wrap = document.createElement('div');
+            wrap.innerHTML = slotHtml(s.id, s.l);
+            const el = wrap.firstElementChild;
+            el.style.left = s.x + '%';
+            el.style.top  = s.y + '%';
+            pitchAbs.appendChild(el);
+          });
+          loadLineup();
+        }
+        formationSelect?.addEventListener('change', () => renderFormation(formationSelect.value));
+
+        // --------- DnD helpers ---------
+        window.onDragOver = (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect='copy'; };
+        window.onDragEnter=(e)=>{ e.currentTarget.classList.add('ring-2','ring-white'); };
+        window.onDragLeave=(e)=>{ e.currentTarget.classList.remove('ring-2','ring-white'); };
+        window.onDrop = (e)=>{
+          e.preventDefault();
+          e.currentTarget.classList.remove('ring-2','ring-white');
+          const t = e.dataTransfer.getData('text/plain'); if(!t) return;
+          let p; try{ p = JSON.parse(t);}catch{ return; }
+          placeInto(e.currentTarget, p); saveLineup();
+        };
+
+        function placeInto(slotEl, p){
+          slotEl.innerHTML = `
+            <div class="flex h-full w-full flex-col items-center justify-center text-white">
+              <img src="${p.img || 'https://placehold.co/48x48'}" class="mb-1 h-12 w-12 rounded-full object-cover" />
+              <span class="line-clamp-2 text-center text-[10px] leading-tight">${p.name}</span>
+            </div>
+            <button type="button" class="clear-btn absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 text-white shadow" title="Kaldır" onclick="clearSlot(this)">×</button>`;
+          slotEl.dataset.playerId = p.id;
+        }
+
+        window.clearSlot = (btn)=>{
+          const dz = btn.closest('.dropzone'); if(!dz) return;
+          dz.innerHTML = `<div class="flex h-full w-full items-center justify-center text-xs"><span class="opacity-80">Bırak</span></div>
+                          <button type="button" class="clear-btn hidden absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 text-white shadow" title="Kaldır" onclick="clearSlot(this)">×</button>`;
+          dz.removeAttribute('data-player-id');
+          saveLineup();
+        };
+
+        // --------- Detay paneli ---------
+        const MODEL = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model));
+        window.showDetail = (id) => {
+          const p = MODEL.find(x => x.player_id === id);
+          if (!p) return;
+          document.getElementById('playerDetail').classList.remove('hidden');
+          document.getElementById('d_img').src  = p.image_url || 'https://placehold.co/96x96';
+          document.getElementById('d_name').textContent = p.name || '—';
+          document.getElementById('d_pos').textContent  = p.position || p.sub_position || '—';
+          document.getElementById('d_dob').textContent  = p.date_of_birth ? new Date(p.date_of_birth).toLocaleDateString() : '—';
+          document.getElementById('d_foot').textContent = p.foot || '—';
+          document.getElementById('d_val').textContent  = p.market_value_in_eur ? Number(p.market_value_in_eur).toLocaleString() : '—';
+        };
+
+        // --------- Kaydet/Yükle (kulüp + formasyon) ---------
+        function storageKey(){ return `lineup-${clubId}-${currentFormation}`; }
+        function currentLayout(){
+          const obj={}; document.querySelectorAll('.dropzone').forEach(dz=>{
+            obj[dz.dataset.slot] = dz.dataset.playerId ? Number(dz.dataset.playerId) : null;
+          }); return obj;
+        }
+        function saveLineup(){ localStorage.setItem(storageKey(), JSON.stringify(currentLayout())); }
+        function loadLineup(){
+          const raw = localStorage.getItem(storageKey()); if(!raw) return;
+          try{
+            const layout = JSON.parse(raw);
+            for (const [slot,pid] of Object.entries(layout)){
+              if (!pid) continue;
+              const p = MODEL.find(x => x.player_id === pid);
+              const dz = document.querySelector(`.dropzone[data-slot="${slot}"]`);
+              if (p && dz) placeInto(dz, { id:p.player_id, name:p.name, img:p.image_url });
+            }
+          }catch{}
+        }
+        window.saveLineup = saveLineup;
+        window.clearLineup = ()=>{ document.querySelectorAll('.dropzone .clear-btn').forEach(b=>b.click()); localStorage.removeItem(storageKey()); };
+
+        // init
+        applyFilter();
+        renderFormation(formationSelect.value);
+    </script>
+}

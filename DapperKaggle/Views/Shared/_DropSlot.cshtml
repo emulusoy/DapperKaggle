@@ -1,0 +1,13 @@
+﻿<div class="dropzone group relative
+            h-14 w-14 md:h-16 md:w-16 xl:h-20 xl:w-20
+            rounded-2xl border-2 border-white/70 bg-white/10 text-white backdrop-blur-sm transition
+            hover:bg-white/20"
+     data-slot="@Model.Slot"
+     ondragover="onDragOver(event)" ondragenter="onDragEnter(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+    <div class="pointer-events-none absolute -top-2 md:-top-3 left-1/2 -translate-x-1/2 rounded-lg bg-black/30 px-2 py-0.5 text-[10px]">@Model.Label</div>
+    <div class="flex h-full w-full items-center justify-center text-xs"><span class="opacity-80">Bırak</span></div>
+    <button type="button" class="clear-btn hidden absolute -right-2 -top-2 h-6 w-6 rounded-full bg-red-500 text-white shadow"
+            title="Kaldır" onclick="clearSlot(this)">
+        ×
+    </button>
+</div>

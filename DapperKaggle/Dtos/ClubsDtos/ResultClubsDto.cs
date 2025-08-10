@@ -9,7 +9,7 @@
 
         public string? total_Market_Value { get; set; }  
         public int? squad_Size { get; set; }   
-        public decimal? average_Age { get; set; }   
+        public int? average_Age { get; set; }   
         public int? foreigners_Number { get; set; }   
         public decimal? foreigners_Percentage { get; set; }  
         public int? national_Team_Players { get; set; }   

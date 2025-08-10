@@ -81,5 +81,61 @@ namespace DapperKaggle.Repositories.Concrete
             var value = connn.QueryFirstAsync<GetClubsByIdDto>(sql, parameters);
             return value;
         }
+        public async Task<int> GetMatchesCountAsync(string compId, int? clubId, string? result, string? hosting)
+        {
+            const string sql = @"
+                                    SELECT COUNT(1)
+                                    FROM dbo.club_games g
+                                    JOIN dbo.clubs c  ON c.club_id  = g.club_id
+                                    WHERE c.domestic_competition_id = @compId
+                                      AND (@clubId IS NULL OR g.club_id = @clubId)
+                                      AND (@hosting IS NULL OR g.hosting = @hosting)
+                                      AND (@result IS NULL OR
+                                          CASE WHEN g.own_goals > g.opponent_goals THEN 'W'
+                                               WHEN g.own_goals = g.opponent_goals THEN 'D'
+                                               ELSE 'L' END = @result);";
+
+            using var con = _context.CreateConnection();
+            return await con.ExecuteScalarAsync<int>(sql, new { compId, clubId, hosting, result });
+        }
+
+        public async Task<List<ClubGameDto>> GetMatchesAsync(string compId, int? clubId, string? result, string? hosting, int page, int pageSize)
+        {
+            const string sql = @"
+                                SELECT
+                                  g.game_id, g.club_id, c.name AS club_name,
+                                  g.own_goals, g.own_position,
+                                  g.opponent_id, c2.name AS opponent_name, g.opponent_goals, g.opponent_position,
+                                  g.own_manager_name, g.opponent_manager_name,
+                                  g.hosting, g.is_win,
+                                  CASE WHEN g.own_goals > g.opponent_goals THEN 'W'
+                                       WHEN g.own_goals = g.opponent_goals THEN 'D'
+                                       ELSE 'L' END AS result
+                                FROM dbo.club_games g
+                                JOIN dbo.clubs c  ON c.club_id  = g.club_id
+                                JOIN dbo.clubs c2 ON c2.club_id = g.opponent_id
+                                WHERE c.domestic_competition_id = @compId
+                                  AND (@clubId IS NULL OR g.club_id = @clubId)
+                                  AND (@hosting IS NULL OR g.hosting = @hosting)
+                                  AND (@result IS NULL OR
+                                      CASE WHEN g.own_goals > g.opponent_goals THEN 'W'
+                                           WHEN g.own_goals = g.opponent_goals THEN 'D'
+                                           ELSE 'L' END = @result)
+                                ORDER BY g.game_id DESC
+                                OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;";
+
+            using var con = _context.CreateConnection();
+            var rows = await con.QueryAsync<ClubGameDto>(sql, new
+            {
+                compId,
+                clubId,
+                hosting,
+                result,
+                offset = (page - 1) * pageSize,
+                pageSize
+            }, commandType: CommandType.Text);
+
+            return rows.ToList();
+        }
     }
 }

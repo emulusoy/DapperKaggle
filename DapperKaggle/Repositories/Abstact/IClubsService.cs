@@ -10,5 +10,9 @@ namespace DapperKaggle.Repositories.Abstact
         Task<int> GetClubsCountAsync(string compId, string? q);
         Task DeleteClubs(int customerId);
         Task<GetClubsByIdDto> GetClubsById(int id);
+
+        Task<List<ClubGameDto>> GetMatchesAsync(string compId, int? clubId, string? result, string? hosting, int page, int pageSize);
+        Task<int> GetMatchesCountAsync(string compId, int? clubId, string? result, string? hosting);
+
     }
 }
