@@ -23,8 +23,6 @@ namespace DapperKaggle.Repositories.Concrete
             var conn=  _context.CreateConnection();
             await conn.ExecuteAsync(sql, parameters);
         }
-
-        // Geriye uyumluluk: istersen TR1 ilk sayfa 20 kayıt dönsün
         public Task<List<ResultClubsDto>> GetAllClubsAsync()
             => GetAllClubsAsync("TR1", null, 1, 20);
 

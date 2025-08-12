@@ -16,7 +16,6 @@ namespace DapperKaggle.Repositories.Concrete
             Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
         }
 
-        // Dapper için küçük raw tipler
         private sealed class PlayerRow
         {
             public long player_id { get; set; }
@@ -61,17 +60,15 @@ WHERE domestic_competition_id = @compId;";
 
             var players = (await con.QueryAsync<PlayerRow>(playersSql, new { compId })).ToList();
             var clubs = (await con.QueryAsync<ClubRow>(clubsSql, new { compId })).ToList();
-
-            // ----- C# tarafında hesaplamalar -----
             var dto = new DashboardDto
             {
                 total_players = players.Count,
                 total_clubs = clubs.Count
-            };// --- Pozisyona göre oyuncu sayısı ---
+            };
             string MapPos(PlayerRow p)
             {
                 var pos = (p.position ?? p.sub_position ?? "").Trim();
-                // dataset genelde: Goalkeeper / Defender / Midfield / Attack
+               
                 if (string.IsNullOrEmpty(pos)) return "Bilinmiyor";
                 pos = pos.ToLowerInvariant();
                 if (pos.Contains("goal")) return "Goalkeeper";
@@ -87,7 +84,6 @@ WHERE domestic_competition_id = @compId;";
                 .OrderByDescending(x => x.count)
                 .ToList();
 
-            // --- Milli oyuncu sayısı: top 10 kulüp ---
             dto.club_nat_players_top = clubs
                 .Where(c => (c.national_team_players ?? 0) > 0)
                 .OrderByDescending(c => c.national_team_players ?? 0)
@@ -112,7 +108,6 @@ WHERE domestic_competition_id = @compId;";
                 .ToList();
             dto.avg_age = ages.Count > 0 ? Math.Round((decimal)ages.Average(), 1) : 0m;
 
-            // Yabancı ortalaması
             var foreignList = clubs.Where(c => c.foreigners_percentage.HasValue).Select(c => (double)c.foreigners_percentage!.Value).ToList();
             dto.foreigners_avg = foreignList.Count > 0 ? (decimal)Math.Round(foreignList.Average(), 2) : 0m;
 
@@ -178,7 +173,7 @@ WHERE domestic_competition_id = @compId;";
             if (string.IsNullOrEmpty(s)) return 0L;
 
             s = s.ToLowerInvariant();
-            // ör: "+€2.10m", "€750k", "1,200,000"
+
             var mult = 1_000_000L;
             if (s.EndsWith("k")) { mult = 1_000L; s = s[..^1]; }
             else if (s.EndsWith("m")) { mult = 1_000_000L; s = s[..^1]; }
@@ -190,7 +185,7 @@ WHERE domestic_competition_id = @compId;";
             if (decimal.TryParse(s, System.Globalization.NumberStyles.Any,
                  System.Globalization.CultureInfo.InvariantCulture, out var val))
             {
-                // Eğer orijinal değer açık sayıysa (örn 1200000) ve suffix yoksa mult=1
+
                 if (!raw.ToString()!.ToLower().EndsWith("k") &&
                     !raw.ToString()!.ToLower().EndsWith("m") &&
                     !raw.ToString()!.ToLower().EndsWith("b"))
